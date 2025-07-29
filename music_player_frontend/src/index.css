@@ -3,12 +3,14 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100%;
-  background: #f8f9fb;
-  font-family: 'Segoe UI', Arial, sans-serif;
+  background: linear-gradient(128deg, #172033 15%, #2f3755 95%);
+  font-family: 'Quicksand', 'Segoe UI', Arial, sans-serif;
+  color: #f4f7fa;
 }
 body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  background-attachment: fixed;
 }
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;

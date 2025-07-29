@@ -47,9 +47,10 @@ const NAV_OPTIONS = [
 ];
 
 const COLOR_THEME = {
-  primary: "#1DB954",
-  secondary: "#191414",
-  accent: "#535353",
+  primary: "#50e3c2",          // Main highlight, Electric Cyan
+  secondary: "#151929",        // Deep Navy
+  accent: "#ff36a3",           // Magenta Accent
+  gold: "#ffd662",             // Gold, new highlight
 };
 
 // PUBLIC_INTERFACE
@@ -214,10 +215,14 @@ function App() {
         <div className="logo">
           <span
             style={{
-              color: COLOR_THEME.primary,
-              fontWeight: "bold",
-              fontSize: 28,
-              fontFamily: "Segoe UI, sans-serif",
+              color: COLOR_THEME.accent,
+              fontWeight: 900,
+              fontSize: 32,
+              fontFamily: "'Quicksand','Segoe UI',sans-serif",
+              background: "linear-gradient(98deg,#50e3c2 0%,#ff36a3 90%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              filter: "drop-shadow(0 2px 10px #ff36a3)"
             }}
           >
             Streamify
@@ -309,7 +314,10 @@ function App() {
       {renderSidebar()}
       <main className="main-panel">
         <header className="main-header">
-          <h1 className="main-title" style={{ color: COLOR_THEME.primary }}>
+          <h1 className="main-title" style={{
+              color: COLOR_THEME.gold,
+              textShadow: "0 0 8px " + COLOR_THEME.accent + ", 0 2px 9px #151929"
+          }}>
             {tab === "Library" ? "Music Library" : "Your Playlist"}
           </h1>
           {renderSearchBar()}
