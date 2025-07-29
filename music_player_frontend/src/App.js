@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "./App.css";
 
 // Sample music data for demonstration (replace with API/backend integration)
@@ -63,6 +63,9 @@ function App() {
   const [playlist, setPlaylist] = useState([DEMO_TRACKS[0], DEMO_TRACKS[1]]);
   const audioRef = useRef(null);
 
+  // Used to ensure play() requests are coordinated
+  const trackIdRef = useRef(currentTrack ? currentTrack.id : null);
+
   // Derived state
   const filteredTracks = DEMO_TRACKS.filter(
     (track) =>
@@ -72,12 +75,15 @@ function App() {
 
   // PUBLIC_INTERFACE
   function handlePlay(track) {
+    // If clicking the current track again, just resume if paused
+    if (currentTrack && track.id === currentTrack.id) {
+      setIsPlaying(true);
+      return;
+    }
     setCurrentTrack(track);
     setIsPlaying(true);
-    if (audioRef.current) {
-      audioRef.current.load();
-      audioRef.current.play();
-    }
+    // Do not attempt to call play/load here;
+    // let useEffect below synchronize playback when currentTrack changes
   }
 
   // PUBLIC_INTERFACE
@@ -87,6 +93,83 @@ function App() {
       audioRef.current.pause();
     }
   }
+
+  // --- useEffect: Synchronize audio element with track changes & playback state ---
+  useEffect(() => {
+    if (!audioRef.current) return;
+
+    // If there is no currentTrack, pause audio
+    if (!currentTrack) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      return;
+    }
+
+    // Set latest played track id (used for race avoidance)
+    trackIdRef.current = currentTrack.id;
+
+    // When track or isPlaying changes
+    const audio = audioRef.current;
+
+    // If we want to play and the src has changed (new track):
+    if (isPlaying) {
+      // Always update src if needed
+      if (audio.src !== currentTrack.url) {
+        audio.src = currentTrack.url;
+      }
+
+      // Playing new track:
+      // Listen for canplay (can also use loadedmetadata) before calling play()
+      const tryPlay = () => {
+        // The correct track might have changed during async event waiting
+        if (trackIdRef.current !== currentTrack.id) return;
+        const playPromise = audio.play();
+
+        // Some browsers (esp. Safari) only return playPromise if not already playing
+        if (playPromise && typeof playPromise.then === "function") {
+          playPromise.catch((e) => {
+            // If interrupted due to a race, ignore
+            if (
+              e &&
+              (e.name === "AbortError" ||
+                (typeof e.message === "string" &&
+                  e.message.includes("interrupted")))
+            ) {
+              // Suppressed expected interruption
+              return;
+            }
+            // Otherwise log for dev
+            // eslint-disable-next-line no-console
+            console.warn("Audio play() error:", e);
+            setIsPlaying(false);
+          });
+        }
+      };
+
+      // If src is new, wait for canplay to guarantee play() works. If same src, just resume.
+      if (audio.src !== currentTrack.url) {
+        // Edge case: if switching rapidly, remove previous listener
+        audio.removeEventListener("canplay", tryPlay);
+        audio.addEventListener("canplay", tryPlay, { once: true });
+        // If browser already buffered, manually fire play if ready
+        if (audio.readyState >= 3) tryPlay();
+      } else {
+        // If resume on same src (paused → play)
+        tryPlay();
+      }
+    } else {
+      // isPlaying is false > pause
+      audio.pause();
+    }
+
+    // Cleanup event handler on effect exit
+    return () => {
+      // Defensive: Remove play event
+      audio.removeEventListener("canplay", () => {});
+    };
+    // Only rerun this if currentTrack or isPlaying change
+    // eslint-disable-next-line
+  }, [currentTrack, isPlaying]);
 
   // PUBLIC_INTERFACE
   function handlePlayPause() {
@@ -275,8 +358,9 @@ function App() {
       <div className="player-bar">
         <audio
           ref={audioRef}
+          // src is set via useEffect for precision; but retain for robustness:
           src={currentTrack ? currentTrack.url : ""}
-          autoPlay={isPlaying}
+          // autoPlay is not needed; playback and pause is handled in useEffect 
           onEnded={onAudioEnd}
           onPause={() => setIsPlaying(false)}
           onPlay={() => setIsPlaying(true)}
